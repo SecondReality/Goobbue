@@ -232,12 +232,12 @@ struct Effects
 
     bool countUpsContainsAction(Action::Identifier actionIdentifier) const
     {
-        return countUps.find(actionIdentifier)!=countUps.end();
+        return countUps.find(actionIdentifier) != countUps.end();
     }
 
     bool countDownsContainsAction(Action::Identifier actionIdentifier) const
     {
-        return countDowns.find(actionIdentifier)!=countUps.end();
+        return countDowns.find(actionIdentifier) != countUps.end();
     }
 
     int getCountUpsValue(Action::Identifier actionIdentifier) const
@@ -249,6 +249,29 @@ struct Effects
     {
         return countDowns.at(actionIdentifier);
     }
+
+    void removeCountUp(Action::Identifier actionIdentifier)
+    {
+        countUps.erase(actionIdentifier);
+    }
+
+    void removeCountDown(Action::Identifier actionIdentifier)
+    {
+        countDowns.erase(actionIdentifier);
+    }
+
+    void updateCountDowns()
+    {
+        for(auto &kv : countDowns)
+        {
+            kv.second -= 1;
+            if (kv.second <= 0)
+            {
+                countDowns.erase(kv.first);
+            }
+        }
+    }
+
 };
 
 // Not included: stepCount, reliabilityOk,
@@ -260,6 +283,7 @@ struct WorldState
     int durability;
     int quality;
     int progress;
+    int cp;
     enum Condition { Poor, Normal, Good, Excellent };
     Condition condition;
 
@@ -355,6 +379,7 @@ float calculateBaseQualityIncrease(int levelDifference, int control)
 // A single action can result in multiple outcomes:
 std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
 {
+    WorldState newWorldState = worldState;
     const Crafter &crafter = worldState.crafter;
     const Recipe &recipe = worldState.recipe;
     const Effects &effects = worldState.effects;
@@ -473,115 +498,94 @@ std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
         durabilityCost = 0.5f * action.durabilityCost;
     }
 
-/*
-(synth, worldState, logger, depth, action) {
+    // State tracking
+    newWorldState.progress += round(progressGain);
+    newWorldState.quality += round(qualityGain);
+    newWorldState.durability -= durabilityCost;
+    newWorldState.cp -= action.cpCost;
 
-//        if (progressGain > 0) {
- //           reliability = reliability * successProbability;
-  //      }
-
-
-
-    // Occur if a dummy action
+    // Effect management
     //==================================
-    if ((worldState.progressState >= synth.recipe.difficulty || worldState.durabilityState <= 0) && action != AllActions.dummyAction) {
-        wastedActions += 1;
+    // Special Effect Actions
+
+    if(action.identifier==Action::Identifier::mastersMend)
+    {
+        newWorldState.durability += 30;
     }
 
-        // Occur if not a dummy action
-        //==================================
-    else {
-        // State tracking
-        worldState.progressState += Math.round(progressGain);
-        worldState.qualityState += Math.round(qualityGain);
-        worldState.durabilityState -= durabilityCost;
-        worldState.cpState -= action.cpCost;
+    if(action.identifier==Action::Identifier::mastersMend2)
+    {
+        newWorldState.durability += 60;
+    }
 
-        // Effect management
-        //==================================
-        // Special Effect Actions
-        if (isActionEq(action, AllActions.mastersMend)) {
-            worldState.durabilityState += 30;
+    if(effects.countDownsContainsAction(Action::Identifier::manipulation) && newWorldState.durability > 0)
+    {
+        newWorldState.durability += 10;
+    }
+
+    if(effects.countDownsContainsAction(Action::Identifier::comfortZone) && newWorldState.cp > 0)
+    {
+        newWorldState.cp += 8;
+    }
+
+    if(action.identifier==Action::Identifier::rumination && worldState.cp > 0)
+    {
+        if(effects.countUpsContainsAction(Action::Identifier::innerQuiet) && effects.getCountUpsValue(Action::Identifier::innerQuiet) > 0) {
+            int innerQuietValue = effects.getCountUpsValue(Action::Identifier::innerQuiet);
+
+            newWorldState.cp += (21 * innerQuietValue - pow(innerQuietValue, 2) + 10) / 2;
+
+            newWorldState.effects.removeCountUp(Action::Identifier::innerQuiet);
         }
+    }
 
-        if (isActionEq(action, AllActions.mastersMend2)) {
-            worldState.durabilityState += 60;
+    if(action.identifier==Action::Identifier::byregotsBlessing)
+    {
+        if(effects.countUpsContainsAction(Action::Identifier::innerQuiet))
+        {
+            newWorldState.effects.removeCountUp(Action::Identifier::innerQuiet);
         }
+    }
 
-        if (AllActions.manipulation.name in worldState.effects.countDowns && worldState.durabilityState > 0) {
-            worldState.durabilityState += 10;
-        }
+    if(action.qualityIncreaseMultiplier > 0 && effects.countDownsContainsAction(Action::Identifier::greatStrides))
+    {
+        newWorldState.effects.removeCountDown(Action::Identifier::greatStrides);
+    }
 
-        if (AllActions.comfortZone.name in worldState.effects.countDowns && worldState.cpState > 0) {
-            worldState.cpState += 8;
-        }
+    if(action.identifier==Action::Identifier::tricksOfTheTrade && worldState.cp > 0)
+    {
+        newWorldState.cp += 20;
+    }
 
-        if (isActionEq(action, AllActions.rumination) && worldState.cpState > 0) {
-            if (AllActions.innerQuiet.name in worldState.effects.countUps && worldState.effects.countUps[AllActions.innerQuiet.name] > 0) {
-                worldState.cpState += (21 * worldState.effects.countUps[AllActions.innerQuiet.name] - Math.pow(worldState.effects.countUps[AllActions.innerQuiet.name],2) + 10)/2;
-                delete worldState.effects.countUps[AllActions.innerQuiet.name];
-            }
-            else {
-                wastedActions += 1;
-            }
-        }
+    // Decrement countdowns
+    newWorldState.effects.updateCountDowns();
 
-        if (isActionEq(action, AllActions.byregotsBlessing)) {
-            if (AllActions.innerQuiet.name in worldState.effects.countUps) {
-                delete worldState.effects.countUps[AllActions.innerQuiet.name];
-            }
-            else {
-                wastedActions += 1;
-            }
-        }
+    // Increment countups
+    if(action.qualityIncreaseMultiplier > 0 && effects.countUpsContainsAction(Action::Identifier::innerQuiet))
+    {
+        newWorldState.effects.countUps[Action::Identifier::innerQuiet] += 1 * success;
+    }
 
-        if (action.qualityIncreaseMultiplier > 0 && AllActions.greatStrides.name in worldState.effects.countDowns) {
-            delete worldState.effects.countDowns[AllActions.greatStrides.name];
-        }
+    // Add new action to countUps
+    if(action.effectType==Action::EffectType::CountUp)
+    {
+        newWorldState.effects.countUps[action.identifier] = 0;
+    }
 
-        if (isActionEq(action, AllActions.tricksOfTheTrade) && worldState.cpState > 0) {
-            trickUses += 1;
-            worldState.cpState += 20;
-        }
+    // Add new action to countDowns
+    if(action.effectType==Action::EffectType::CountDown)
+    {
+        newWorldState.effects.countDowns[action.identifier] = action.activeTurns;
+    }
 
-        // Decrement countdowns
-        for (var countDown in worldState.effects.countDowns) {
-            worldState.effects.countDowns[countDown] -= 1;
-            if (worldState.effects.countDowns[countDown] === 0) {
-                delete worldState.effects.countDowns[countDown];
-            }
-        }
+    // Sanity checks for state variables
+    if ((worldState.durability >= -5) && (worldState.progress >= worldState.recipe.difficulty))
+    {
+        newWorldState.durability = 0;
+    }
 
-        // Increment countups
-        if (action.qualityIncreaseMultiplier > 0 && AllActions.innerQuiet.name in worldState.effects.countUps) {
-            worldState.effects.countUps[AllActions.innerQuiet.name] += 1 * success;
-        }
-
-        // Initialize new worldState.effects.after countdowns are managed to reset them properly
-        if (action.type === 'countup') {
-            worldState.effects.countUps[action.name] = 0;
-        }
-
-        if (action.type == 'countdown') {
-            worldState.effects.countDowns[action.name] = action.activeTurns;
-        }
-
-        // Sanity checks for state variables
-        if ((worldState.durabilityState >= -5) && (worldState.progressState >= synth.recipe.difficulty)) {
-            worldState.durabilityState = 0;
-        }
-        worldState.durabilityState = Math.min(worldState.durabilityState, synth.recipe.durability);
-        worldState.cpState = Math.min(worldState.cpState, synth.crafter.craftPoints);
-
-        // Count cross class actions
-        if (!((action.cls === 'All') || (action.cls === synth.crafter.cls) || (action.shortName in worldState.crossClassActionList))) {
-            worldState.crossClassActionList[action.shortName] = true;
-            //crossClassActionCounter += 1; // not sure what the purpose is of this.
-        }
-
-
-*/
-
+    newWorldState.durability = std::min(worldState.durability, worldState.recipe.durability);
+    newWorldState.cp = std::min(worldState.cp, worldState.crafter.cp);
 }
 
 void Evaluate(WorldState worldState, int depth)
