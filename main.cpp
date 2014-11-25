@@ -237,7 +237,7 @@ struct Effects
 
     bool countDownsContainsAction(Action::Identifier actionIdentifier) const
     {
-        return countDowns.find(actionIdentifier) != countUps.end();
+        return countDowns.find(actionIdentifier) != countDowns.end();
     }
 
     int getCountUpsValue(Action::Identifier actionIdentifier) const
@@ -588,12 +588,6 @@ void SimulateAction(WorldState& worldState, Action action, float success)
     if(action.effectType==Action::EffectType::CountDown)
     {
         worldState.effects.countDowns[action.identifier] = action.activeTurns;
-    }
-
-    // Sanity checks for state variables
-    if ((worldState.durability >= -5) && (worldState.progress >= worldState.recipe.difficulty))
-    {
-        worldState.durability = 0;
     }
 
     worldState.durability = std::min(worldState.durability, worldState.recipe.durability);
