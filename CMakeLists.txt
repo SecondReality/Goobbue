@@ -3,5 +3,5 @@ project(Goobbue)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-set(SOURCE_FILES main.cpp ThirdParty/jsoncpp.cpp)
+set(SOURCE_FILES main.cpp jsonLoader.cpp actionApplication.cpp craftingClass.cpp action.cpp ThirdParty/jsoncpp.cpp)
 add_executable(Goobbue ${SOURCE_FILES})
