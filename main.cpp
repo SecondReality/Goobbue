@@ -376,45 +376,13 @@ float calculateBaseQualityIncrease(int levelDifference, int control)
     return round(levelCorrectedQuality);
 }
 
-// A single action can result in multiple outcomes:
-std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
+void SimulateAction(WorldState& worldState, Action action, float success);
+
+typedef std::pair<Outcome, Outcome> Outcomes;
+
+Outcomes ApplyAction(const WorldState& worldState, Action action)
 {
-    WorldState newWorldState = worldState;
-    const Crafter &crafter = worldState.crafter;
-    const Recipe &recipe = worldState.recipe;
     const Effects &effects = worldState.effects;
-
-    int craftsmanship = crafter.craftsmanship;
-    int control = crafter.control;
-
-    if (effects.countUpsContainsAction(Action::Identifier::innerQuiet))
-    {
-        control *= (1 + 0.2 * effects.getCountUpsValue(Action::Identifier::innerQuiet));
-    }
-
-    if (effects.countDownsContainsAction(Action::Identifier::innovation))
-    {
-        control *= 1.5;
-    }
-
-    int levelDifference = worldState.crafter.level - recipe.level;
-
-    if (effects.countDownsContainsAction(Action::Identifier::ingenuity2) && (levelDifference < -20) && (crafter.level == 50))
-    {
-        levelDifference = levelDifference + 20;
-    }
-    else if (effects.countDownsContainsAction(Action::Identifier::ingenuity2))
-    {
-        levelDifference = 3;
-    }
-    else if (effects.countDownsContainsAction(Action::Identifier::ingenuity) && (levelDifference < -20) && (crafter.level == 50))
-    {
-        levelDifference = levelDifference + 10;
-    }
-    else if (effects.countDownsContainsAction(Action::Identifier::ingenuity))
-    {
-        levelDifference = 0;
-    }
 
     float successProbability = 0.0f;
 
@@ -422,7 +390,7 @@ std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
     {
         successProbability = action.successProbability + 0.3f;
     }
-    else if (effects.countDownsContainsAction(Action::Identifier::steadyHand))
+    else if(effects.countDownsContainsAction(Action::Identifier::steadyHand))
     {
         successProbability = action.successProbability + 0.2f;
     }
@@ -433,6 +401,60 @@ std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
 
     successProbability = std::min(successProbability, 1.0f);
 
+    float failureProbability = 1.0f - successProbability;
+
+    Outcome successWorld;
+    successWorld.worldState = worldState;
+    successWorld.probability = successProbability;
+
+    Outcome failureWorld;
+    failureWorld.worldState = worldState;
+    failureWorld.probability = failureProbability;
+
+    SimulateAction(successWorld.worldState, action, 1.0f);
+    SimulateAction(failureWorld.worldState, action, 0.0f);
+
+    return std::make_pair(successWorld, failureWorld);
+}
+
+void SimulateAction(WorldState& worldState, Action action, float success)
+{
+    const Crafter &crafter = worldState.crafter;
+    const Recipe &recipe = worldState.recipe;
+    const Effects &effects = worldState.effects;
+
+    int craftsmanship = crafter.craftsmanship;
+    int control = crafter.control;
+
+    if(effects.countUpsContainsAction(Action::Identifier::innerQuiet))
+    {
+        control *= (1 + 0.2 * effects.getCountUpsValue(Action::Identifier::innerQuiet));
+    }
+
+    if(effects.countDownsContainsAction(Action::Identifier::innovation))
+    {
+        control *= 1.5;
+    }
+
+    int levelDifference = worldState.crafter.level - recipe.level;
+
+    if(effects.countDownsContainsAction(Action::Identifier::ingenuity2) && (levelDifference < -20) && (crafter.level == 50))
+    {
+        levelDifference = levelDifference + 20;
+    }
+    else if(effects.countDownsContainsAction(Action::Identifier::ingenuity2))
+    {
+        levelDifference = 3;
+    }
+    else if(effects.countDownsContainsAction(Action::Identifier::ingenuity) && (levelDifference < -20) && (crafter.level == 50))
+    {
+        levelDifference = levelDifference + 10;
+    }
+    else if(effects.countDownsContainsAction(Action::Identifier::ingenuity))
+    {
+        levelDifference = 0;
+    }
+
     float qualityIncreaseMultiplier = action.qualityIncreaseMultiplier;
 
     if(effects.countDownsContainsAction(Action::Identifier::greatStrides))
@@ -440,11 +462,11 @@ std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
         qualityIncreaseMultiplier *= 2;
     }
 
-    if (worldState.condition==WorldState::Condition::Poor)
+    if(worldState.condition==WorldState::Condition::Poor)
     {
         qualityIncreaseMultiplier *= 0.5;
     }
-    else if (worldState.condition==WorldState::Condition::Excellent)
+    else if(worldState.condition==WorldState::Condition::Excellent)
     {
         qualityIncreaseMultiplier *= 4;
     }
@@ -459,15 +481,6 @@ std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
     else
     {
         std::cout << "Error - unknown condition";
-    }
-
-    // Calculate final gains / losses
-    float success = 0;
-    float successRand = 0;//Math.random(); <SMR>
-
-    if(0 <= successRand && successRand <= successProbability)
-    {
-        success = 1;
     }
 
     float bProgressGain = action.progressIncreaseMultiplier * calculateBaseProgressIncrease(levelDifference, craftsmanship);
@@ -499,10 +512,10 @@ std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
     }
 
     // State tracking
-    newWorldState.progress += round(progressGain);
-    newWorldState.quality += round(qualityGain);
-    newWorldState.durability -= durabilityCost;
-    newWorldState.cp -= action.cpCost;
+    worldState.progress += round(progressGain);
+    worldState.quality += round(qualityGain);
+    worldState.durability -= durabilityCost;
+    worldState.cp -= action.cpCost;
 
     // Effect management
     //==================================
@@ -510,32 +523,31 @@ std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
 
     if(action.identifier==Action::Identifier::mastersMend)
     {
-        newWorldState.durability += 30;
+        worldState.durability += 30;
     }
 
     if(action.identifier==Action::Identifier::mastersMend2)
     {
-        newWorldState.durability += 60;
+        worldState.durability += 60;
     }
 
-    if(effects.countDownsContainsAction(Action::Identifier::manipulation) && newWorldState.durability > 0)
+    if(effects.countDownsContainsAction(Action::Identifier::manipulation) && worldState.durability > 0)
     {
-        newWorldState.durability += 10;
+        worldState.durability += 10;
     }
 
-    if(effects.countDownsContainsAction(Action::Identifier::comfortZone) && newWorldState.cp > 0)
+    if(effects.countDownsContainsAction(Action::Identifier::comfortZone) && worldState.cp > 0)
     {
-        newWorldState.cp += 8;
+        worldState.cp += 8;
     }
 
     if(action.identifier==Action::Identifier::rumination && worldState.cp > 0)
     {
-        if(effects.countUpsContainsAction(Action::Identifier::innerQuiet) && effects.getCountUpsValue(Action::Identifier::innerQuiet) > 0) {
+        if(effects.countUpsContainsAction(Action::Identifier::innerQuiet) && effects.getCountUpsValue(Action::Identifier::innerQuiet) > 0)
+        {
             int innerQuietValue = effects.getCountUpsValue(Action::Identifier::innerQuiet);
-
-            newWorldState.cp += (21 * innerQuietValue - pow(innerQuietValue, 2) + 10) / 2;
-
-            newWorldState.effects.removeCountUp(Action::Identifier::innerQuiet);
+            worldState.cp += (21 * innerQuietValue - pow(innerQuietValue, 2) + 10) / 2;
+            worldState.effects.removeCountUp(Action::Identifier::innerQuiet);
         }
     }
 
@@ -543,49 +555,49 @@ std::vector<Outcome> ApplyAction(const WorldState& worldState, Action action)
     {
         if(effects.countUpsContainsAction(Action::Identifier::innerQuiet))
         {
-            newWorldState.effects.removeCountUp(Action::Identifier::innerQuiet);
+            worldState.effects.removeCountUp(Action::Identifier::innerQuiet);
         }
     }
 
     if(action.qualityIncreaseMultiplier > 0 && effects.countDownsContainsAction(Action::Identifier::greatStrides))
     {
-        newWorldState.effects.removeCountDown(Action::Identifier::greatStrides);
+        worldState.effects.removeCountDown(Action::Identifier::greatStrides);
     }
 
     if(action.identifier==Action::Identifier::tricksOfTheTrade && worldState.cp > 0)
     {
-        newWorldState.cp += 20;
+        worldState.cp += 20;
     }
 
     // Decrement countdowns
-    newWorldState.effects.updateCountDowns();
+    worldState.effects.updateCountDowns();
 
     // Increment countups
     if(action.qualityIncreaseMultiplier > 0 && effects.countUpsContainsAction(Action::Identifier::innerQuiet))
     {
-        newWorldState.effects.countUps[Action::Identifier::innerQuiet] += 1 * success;
+        worldState.effects.countUps[Action::Identifier::innerQuiet] += 1 * success;
     }
 
     // Add new action to countUps
     if(action.effectType==Action::EffectType::CountUp)
     {
-        newWorldState.effects.countUps[action.identifier] = 0;
+        worldState.effects.countUps[action.identifier] = 0;
     }
 
     // Add new action to countDowns
     if(action.effectType==Action::EffectType::CountDown)
     {
-        newWorldState.effects.countDowns[action.identifier] = action.activeTurns;
+        worldState.effects.countDowns[action.identifier] = action.activeTurns;
     }
 
     // Sanity checks for state variables
     if ((worldState.durability >= -5) && (worldState.progress >= worldState.recipe.difficulty))
     {
-        newWorldState.durability = 0;
+        worldState.durability = 0;
     }
 
-    newWorldState.durability = std::min(worldState.durability, worldState.recipe.durability);
-    newWorldState.cp = std::min(worldState.cp, worldState.crafter.cp);
+    worldState.durability = std::min(worldState.durability, worldState.recipe.durability);
+    worldState.cp = std::min(worldState.cp, worldState.crafter.cp);
 }
 
 void Evaluate(WorldState worldState, int depth)
@@ -643,7 +655,10 @@ int main()
     ApplyRecipe(worldState, crafter, recipe);
 
     // Apply the selected recipe to the world state:
-    Evaluate(worldState, 10);
+    //Evaluate(worldState, 10);
+    worldState.print();
+    Outcomes outcomes = ApplyAction(worldState, actions[Action::Identifier::basicSynth]);
+    outcomes.first.worldState.print();
 
     std::cout << "Press return to exit." << endl;
     int a;
