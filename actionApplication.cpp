@@ -7,7 +7,6 @@ float round(float d)
     return floor(d + 0.5f);
 }
 
-
 float calculateBaseProgressIncrease(int levelDifference, int craftsmanship)
 {
     float levelCorrectionFactor = 0;
@@ -105,7 +104,6 @@ Outcomes ApplyAction(const WorldState& worldState, Action action)
 
     Outcome successWorld;
     successWorld.worldState = worldState;
-    successWorld.worldState.print();
     successWorld.probability = successProbability;
 
     Outcome failureWorld;
@@ -291,6 +289,8 @@ void SimulateAction(WorldState& worldState, Action action, float success)
         worldState.effects.countDowns[action.identifier] = action.activeTurns;
     }
 
+    worldState.progress = std::min(worldState.progress, worldState.recipe.difficulty);
+    worldState.quality = std::min(worldState.quality, worldState.recipe.maxQuality);
     worldState.durability = std::min(worldState.durability, worldState.recipe.durability);
     worldState.cp = std::min(worldState.cp, worldState.crafter.cp);
 }
