@@ -1,7 +1,5 @@
 #include "expectimax.h"
 #include "actionApplication.h"
-#include "jsonLoader.h"
-#include <string>
 #include <limits>
 
 bool canUseAction(const WorldState & worldState, Action action)
@@ -53,7 +51,6 @@ Action::Identifier Expectimax::evaluateAction(WorldState worldState)
 
 float Expectimax::evaluateQualities(const WorldState & worldState, int depth)
 {
-    // std::cout << "in evaluateQualities " << depth << std::endl;
     if(isTerminal(worldState) || depth > maxDepth)
     {
         terminalWorldsEvaluated++;
@@ -81,24 +78,13 @@ bool Expectimax::isTerminal(const WorldState & worldState)
 {
     if(0>=worldState.durability)
     {
-        //std::cout << "Broke " << worldState.durability << std::endl;
         return true;
     }
 
     if(worldState.progress>=worldState.recipe.difficulty)
     {
-        //std::cout << "Finished " << worldState.durability << std::endl;
         return true;
     }
-
-
-    /*
-    if(worldState.quality>=worldState.recipe.maxQuality)
-    {
-        //std::cout << "Finished craft" << std::endl;
-        return true;
-    }
-    */
 
     return false;
 }
