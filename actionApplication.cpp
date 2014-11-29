@@ -111,7 +111,11 @@ Outcomes ApplyAction(const WorldState& worldState, Action action)
     failureWorld.probability = failureProbability;
 
     SimulateAction(successWorld.worldState, action, 1.0f);
-    SimulateAction(failureWorld.worldState, action, 0.0f);
+
+    if(1.0f!=successProbability)
+    {
+        SimulateAction(failureWorld.worldState, action, 0.0f);
+    }
 
     return std::make_pair(successWorld, failureWorld);
 }
@@ -293,4 +297,10 @@ void SimulateAction(WorldState& worldState, Action action, float success)
     worldState.quality = std::min(worldState.quality, worldState.recipe.maxQuality);
     worldState.durability = std::min(worldState.durability, worldState.recipe.durability);
     worldState.cp = std::min(worldState.cp, worldState.crafter.cp);
+
+
+    worldState.progress = std::max(worldState.progress, 0);
+    worldState.quality = std::max(worldState.quality, 0);
+    worldState.durability = std::max(worldState.durability, 0);
+    worldState.cp = std::max(worldState.cp, 0);
 }
