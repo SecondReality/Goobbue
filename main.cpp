@@ -152,9 +152,11 @@ int main()
 
         if(worldState.progress >= worldState.recipe.difficulty)
         {
-            if(worldState.quality <= worldState.recipe.maxQuality)
+            worldState.print();
+
+            if(worldState.quality < worldState.recipe.maxQuality)
             {
-                std::cout << "Congratulations on finishing your craft!" << std::endl;
+                std::cout << "Congratulations on finishing your craft! (progress)" << std::endl;
             }
             else
             {
