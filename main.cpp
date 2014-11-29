@@ -38,10 +38,10 @@ void ApplyRecipe(WorldState & worldState, Crafter crafter, Recipe recipe)
 
 int main()
 {
-    std::cout << "Welcome to Goobbue!" << endl;
+    std::cout << "Welcome to Goobbue!" << std::endl;
 
     // Test reading some json:
-    string dataPath = "E:/Dropbox/Goobbue/Data/";
+    std::string dataPath = "E:/Dropbox/Goobbue/Data/";
 
     typedef std::vector<Action> ActionVector;
     ActionVector actions = ReadActions(loadJson(dataPath+"Skills.json"));
@@ -78,7 +78,7 @@ int main()
     for(int i=0; i<actions.size(); ++i)
     {
         Action action = actions[i];
-        if( (action.craftingClass == Leatherworker || action.craftingClass == All) && action.level<=17)
+        if( (action.craftingClass == Blacksmith || action.craftingClass == All) && action.level<=25)
         {
             crafterActions.push_back((Action::Identifier)i);
         }
@@ -86,10 +86,74 @@ int main()
 
     crafterActions.push_back(Action::Identifier::rapidSynthesis);
     crafterActions.push_back(Action::Identifier::hastyTouch);
+    crafterActions.push_back(Action::Identifier::wasteNot);
+    crafterActions.push_back(Action::Identifier::manipulation);
 
     std::cout << "Loaded with : " << crafterActions.size() << " actions." << std::endl;
 
     // For now we just give the class skills to our crafter:
+
+    Crafter crafter;
+    /*
+    crafter.actions = crafterActions;
+    crafter.level = 18;
+    crafter.craftsmanship = 68;
+    crafter.control = 87;
+    crafter.cp = 237+17;
+    */
+
+    crafter.actions = crafterActions;
+    crafter.level = 25;
+    crafter.craftsmanship = 136;
+    crafter.control = 140;
+    crafter.cp = 261+17;
+
+
+    Recipe recipe;
+
+    /*
+   // Hard leather
+    recipe.difficulty = 20;
+    recipe.durability = 40;
+    recipe.maxQuality = 866;
+    recipe.level = 16;
+    */
+
+    /*
+    // Hard Leather belt:
+    recipe.difficulty = 63;
+    recipe.durability = 70;
+    recipe.maxQuality = 526;
+    recipe.level = 16;
+    */
+
+
+    // Iron ingot
+    recipe.difficulty = 31;
+    recipe.durability = 40;
+    recipe.maxQuality = 866;
+    recipe.level = 16;
+
+
+    /*
+    // Initiates Head Knife
+    recipe.difficulty = 68;
+    recipe.durability = 70;
+    recipe.maxQuality = 982;
+    recipe.level = 19;
+    */
+
+    WorldState worldState;
+    worldState.condition = WorldState::Condition::Normal;
+    ApplyRecipe(worldState, crafter, recipe);
+
+    //worldState.quality = 376;
+
+    //worldState.durability = 5;
+    //worldState.quality = 785;
+    //worldState.cp = 22;
+
+    /*
     Crafter crafter;
     crafter.actions = crafterActions;
     crafter.level = 17;
@@ -105,9 +169,27 @@ int main()
 
     WorldState worldState;
     worldState.condition = WorldState::Condition::Normal;
+
     ApplyRecipe(worldState, crafter, recipe);
+    worldState.effects.countDowns[Action::Identifier::steadyHand]=2;
+    worldState.cp =104;
+    worldState.durability = 40;
+    worldState.quality = 0;
+    */
 
 
+    /*
+    Outcomes outcomes = ApplyAction(worldState, actions[Action::Identifier::basicTouch]);
+
+    outcomes = ApplyAction(outcomes.first.worldState, actions[Action::Identifier::basicTouch]);
+    outcomes.first.worldState.print();
+    outcomes = ApplyAction(outcomes.first.worldState, actions[Action::Identifier::basicTouch]);
+    outcomes.first.worldState.print();
+    outcomes = ApplyAction(outcomes.first.worldState, actions[Action::Identifier::basicTouch]);
+    outcomes.first.worldState.print();
+   // outcomes = applyAction(outcomes.first.worldState, actions[Action::Identifier::basicTouch]);
+    outcomes.first.worldState.print();
+    */
 
     while(true)
     {
@@ -119,15 +201,17 @@ int main()
         Action::Identifier id = expectimax.evaluateAction(worldState);
 
         std::cout << "Use the " << actions[id].name << " skill!" << std::endl;
-        Outcomes outcomes = ApplyAction(worldState, actions[id]);
+        Outcomes outcomes = applyAction(worldState, actions[id], true);
 
         if(outcomes.first.worldState.durability<=0)
         {
-            std::cout << "Congratulations on finishing your craft!" << std::endl;
+            std::cout << "Congratulations on finishing your craft! (durability)" << std::endl;
+
+            outcomes.first.worldState.print();
             break;
         }
 
-        if(actions[id].successProbability==1.0f)
+        if(outcomes.first.probability==1.0f)
         {
             worldState = outcomes.first.worldState;
         }
@@ -198,21 +282,6 @@ int main()
         }
     }
 
-    /*
-    for(int i=0; i<4; i++)
-    {
-        Expectimax expectimax;
-        expectimax.actions = actions;
-        Action::Identifier id = expectimax.evaluateAction(worldState);
-        Outcomes outcomes = ApplyAction(worldState, actions[id]);
-        worldState = outcomes.first.worldState;
-    }
-    */
-
-
-
     std::cout << "End" << endl;
-    //int a;
-    //std::cin >> a;
     return 0;
 }
