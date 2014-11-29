@@ -1,14 +1,73 @@
 #include "action.h"
 
 #include <iostream>
+#include <algorithm>
 #include <string>
+
+std::vector<std::string> actionNames()
+{
+    std::vector<std::string> names = {
+            "basicSynth",
+            "standardSynthesis",
+            "flawlessSynthesis",
+            "carefulSynthesis",
+            "carefulSynthesis2",
+            "pieceByPiece",
+            "rapidSynthesis",
+            "basicTouch",
+            "standardTouch",
+            "advancedTouch",
+            "hastyTouch",
+            "byregotsBlessing",
+            "comfortZone",
+            "rumination",
+            "mastersMend",
+            "mastersMend2",
+            "wasteNot",
+            "wasteNot2",
+            "manipulation",
+            "innerQuiet",
+            "steadyHand",
+            "steadyHand2",
+            "ingenuity",
+            "ingenuity2",
+            "greatStrides",
+            "innovation",
+            "tricksOfTheTrade"
+    };
+    return names;
+}
+
+std::string actionIdentifierToString(Action::Identifier actionIdentifier)
+{
+    return actionNames()[actionIdentifier];
+}
+
+Action::Identifier stringToActionIdentifier(std::string actionIdentifierString)
+{
+    Action::Identifier identifier;
+
+    std::vector<std::string> actionNameVector = actionNames();
+
+    auto it = std::find(actionNameVector.begin(), actionNameVector.end(), actionIdentifierString);
+    if(actionNameVector.end()==it)
+    {
+        std::cout << "Action identifier not found!" << std::endl;
+    }
+    else
+    {
+        identifier = (Action::Identifier)std::distance(actionNameVector.begin(), it);
+    }
+
+    return identifier;
+}
 
 void Action::print()
 {
     std::cout << "Action: " << shortName << " " << name << " " << level << " " << common << std::endl;
 }
 
-std::vector<Action> ReadActions(Json::Value root)
+std::vector<Action> readActions(Json::Value root)
 {
     std::vector<Action> actions;
     for (int i = 0; i < root.size(); ++i)

@@ -15,3 +15,4 @@ enum CraftingClass
 };
 
 CraftingClass stringToCraftingClass(std::string s);
+std::string craftingClassToString(CraftingClass craftingClass);

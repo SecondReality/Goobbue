@@ -4,13 +4,8 @@
 // recipedb.js: All recipes
 
 #include <iostream>
-#include "ThirdParty/json.h"
-
-#include <vector>
 #include <map>
-#include <math.h>
-
-using namespace std;
+#include "ThirdParty/json.h"
 
 #include "craftingClass.h"
 #include "action.h"
@@ -24,9 +19,10 @@ using namespace std;
 
 // Action -> Reaction -> Condition
 
-// Applies data from a recipe to the world state:
-void ApplyRecipe(WorldState & worldState, Crafter crafter, Recipe recipe)
+// Applies data from a recipe and crafter to the world state:
+void initializeWorldState(WorldState &worldState, Crafter crafter, Recipe recipe)
 {
+    worldState.condition = WorldState::Condition::Normal;
     worldState.cp = crafter.cp;
     worldState.crafter = crafter;
     worldState.recipe = recipe;
@@ -36,159 +32,144 @@ void ApplyRecipe(WorldState & worldState, Crafter crafter, Recipe recipe)
     worldState.quality = 0;
 }
 
+void mainMenu();
+void configureCrafters();
+void performCraft();
+
 int main()
 {
     std::cout << "Welcome to Goobbue!" << std::endl;
+    mainMenu();
+    return 0;
+}
 
-    // Test reading some json:
+void mainMenu()
+{
+    while(true)
+    {
+        std::cout << "-- Main Menu --" << std::endl;
+        std::cout << "\t1. Configure your crafters." << std::endl;
+        std::cout << "\t2. Perform a craft" << std::endl;
+        std::cout << "Please enter a choice (1 or 2):" << std::endl;
+
+        char choice;
+        std::cin >> choice;
+
+        if (choice == '1')
+        {
+            configureCrafters();
+        }
+        else if (choice == '2')
+        {
+            performCraft();
+        }
+        else
+        {
+            std::cout << "Unrecognized selection, quitting (goodbye!)" << std::endl;
+            break;
+        }
+    }
+}
+
+void configureCrafters()
+{
+    std::cout << "-- Crafter Configuration --" << std::endl;
+    std::cout << "Select your crafting class:" << std::endl;
+
+    std::cout << "\t1. Alchemist" << std::endl;
+    std::cout << "\t2. Armorer" << std::endl;
+    std::cout << "\t3. Blacksmith" << std::endl;
+    std::cout << "\t4. Carpenter" << std::endl;
+    std::cout << "\t5. Culinarian" << std::endl;
+    std::cout << "\t6. Goldsmith" << std::endl;
+    std::cout << "\t7. Leatherworker" << std::endl;
+    std::cout << "\t8. Weaver" << std::endl;
+    std::cout << "Please enter a choice (1 to 8):" << std::endl;
+
+    char choice;
+    std::cin >> choice;
+
+    if(choice>'8' || choice <'1')
+    {
+        std::cout << "Unrecognized selection, quitting" << std::endl;
+        return;
+    }
+
+    CraftingClass craftingClass = (CraftingClass)(choice-'1');
+    std::cout << "Configure your " << craftingClassToString(craftingClass) << std::endl;
+    std::cout << "Feature not supported, coming soon!" << std::endl;
+}
+
+void performCraft()
+{
     std::string dataPath = "E:/Dropbox/Goobbue/Data/";
 
     typedef std::vector<Action> ActionVector;
-    ActionVector actions = ReadActions(loadJson(dataPath+"Skills.json"));
+    ActionVector actions = readActions(loadJson(dataPath + "Skills.json"));
+    std::map<CraftingClass, Crafter> crafters = readCrafters(loadJson(dataPath + "Crafters.json"), actions);
 
-    std::vector<Action::Identifier> crafterActions;
+    Crafter crafter;
 
-    /*
-    for(int i=0; i<actions.size(); ++i)
+    while(true)
     {
-        Action action = actions[i];
-        if(action.craftingClass == Armorer || action.craftingClass == All)
+        std::cout << "Enter the name of your crafting class" << std::endl;
+        std::string craftingClassName;
+        std::cin >> craftingClassName;
+
+        CraftingClass craftingClass = stringToCraftingClass(craftingClassName);
+        if(craftingClass==CraftingClass::All)
         {
-            crafterActions.push_back((Action::Identifier)i);
+            continue;
+        }
+        else if(crafters.end()==crafters.find(craftingClass))
+        {
+            std::cout << "Crafter does not exist in JSON file" << std::endl;
+        }
+        else
+        {
+            crafter = crafters[craftingClass];
+            crafter.print();
+            break;
         }
     }
 
-    std::cout << "Loaded with : " << crafterActions.size() << " actions." << std::endl;
-
-    // For now we just give the class skills to our crafter:
-    Crafter crafter;
-    crafter.actions = crafterActions;
-    crafter.level = 30;
-    crafter.craftsmanship = 200;
-    crafter.control = 200;
-    crafter.cp = 250;
-
     Recipe recipe;
 
-    WorldState worldState;
-    worldState.condition = WorldState::Condition::Normal;
-    ApplyRecipe(worldState, crafter, recipe);
-    */
-
-    for(int i=0; i<actions.size(); ++i)
+    while(true)
     {
-        Action action = actions[i];
-        if( (action.craftingClass == Blacksmith || action.craftingClass == All) && action.level<=25)
+        std::cin.ignore();
+        std::cout << "Enter the name of the recipe" << std::endl;
+        std::string recipeName;
+        std::getline(std::cin, recipeName);
+        std::cout << "Searching for " << recipeName << std::endl;
+
+        if(readRecipe(loadJson(dataPath + "Recipes.json"), crafter.craftingClass, recipeName, recipe))
         {
-            crafterActions.push_back((Action::Identifier)i);
+            std::cout << "Found recipe." << std::endl;
+            recipe.print();
+            break;
+        }
+        else
+        {
+            std::cout << "Could not find specified recipe" << std::endl;
         }
     }
 
-    crafterActions.push_back(Action::Identifier::rapidSynthesis);
-    crafterActions.push_back(Action::Identifier::hastyTouch);
-    crafterActions.push_back(Action::Identifier::wasteNot);
-    crafterActions.push_back(Action::Identifier::manipulation);
-
-    std::cout << "Loaded with : " << crafterActions.size() << " actions." << std::endl;
-
-    // For now we just give the class skills to our crafter:
-
-    Crafter crafter;
-    /*
-    crafter.actions = crafterActions;
-    crafter.level = 18;
-    crafter.craftsmanship = 68;
-    crafter.control = 87;
-    crafter.cp = 237+17;
-    */
-
-    crafter.actions = crafterActions;
-    crafter.level = 25;
-    crafter.craftsmanship = 136;
-    crafter.control = 140;
-    crafter.cp = 261+17;
-
-
-    Recipe recipe;
-
-    /*
-   // Hard leather
-    recipe.difficulty = 20;
-    recipe.durability = 40;
-    recipe.maxQuality = 866;
-    recipe.level = 16;
-    */
-
-    /*
-    // Hard Leather belt:
-    recipe.difficulty = 63;
-    recipe.durability = 70;
-    recipe.maxQuality = 526;
-    recipe.level = 16;
-    */
-
-
-    // Iron ingot
-    recipe.difficulty = 31;
-    recipe.durability = 40;
-    recipe.maxQuality = 866;
-    recipe.level = 16;
-
-
-    /*
-    // Initiates Head Knife
-    recipe.difficulty = 68;
-    recipe.durability = 70;
-    recipe.maxQuality = 982;
-    recipe.level = 19;
-    */
-
     WorldState worldState;
-    worldState.condition = WorldState::Condition::Normal;
-    ApplyRecipe(worldState, crafter, recipe);
+    initializeWorldState(worldState, crafter, recipe);
 
-    //worldState.quality = 376;
-
-    //worldState.durability = 5;
-    //worldState.quality = 785;
-    //worldState.cp = 22;
-
-    /*
-    Crafter crafter;
-    crafter.actions = crafterActions;
-    crafter.level = 17;
-    crafter.craftsmanship = 68;
-    crafter.control = 87;
-    crafter.cp = 237+17;
-
-    Recipe recipe;
-    recipe.difficulty = 20;
-    recipe.durability = 40;
-    recipe.maxQuality = 526;
-    recipe.level = 8;
-
-    WorldState worldState;
-    worldState.condition = WorldState::Condition::Normal;
-
-    ApplyRecipe(worldState, crafter, recipe);
-    worldState.effects.countDowns[Action::Identifier::steadyHand]=2;
-    worldState.cp =104;
-    worldState.durability = 40;
-    worldState.quality = 0;
-    */
-
+    std::cout << "Enter the starting quality" << std::endl;
+    int quality = 0;
+    std::cin >> quality;
+    worldState.quality = quality;
+    std::cout << "Starting Craft!" << std::endl;
 
     /*
-    Outcomes outcomes = ApplyAction(worldState, actions[Action::Identifier::basicTouch]);
-
-    outcomes = ApplyAction(outcomes.first.worldState, actions[Action::Identifier::basicTouch]);
-    outcomes.first.worldState.print();
-    outcomes = ApplyAction(outcomes.first.worldState, actions[Action::Identifier::basicTouch]);
-    outcomes.first.worldState.print();
-    outcomes = ApplyAction(outcomes.first.worldState, actions[Action::Identifier::basicTouch]);
-    outcomes.first.worldState.print();
-   // outcomes = applyAction(outcomes.first.worldState, actions[Action::Identifier::basicTouch]);
-    outcomes.first.worldState.print();
+    Outcomes outcomes = applyAction(worldState, actions[Action::Identifier::greatStrides]);
+    outcomes = applyAction(outcomes.first.worldState, actions[Action::Identifier::steadyHand]);
+    outcomes.first.worldState.condition = WorldState::Condition::Good;
+    outcomes = applyAction(outcomes.first.worldState, actions[Action::Identifier::standardTouch]);
+    std::cout << "Quality: " << outcomes.first.worldState.quality << std::endl;
     */
 
     while(true)
@@ -201,7 +182,7 @@ int main()
         Action::Identifier id = expectimax.evaluateAction(worldState);
 
         std::cout << "Use the " << actions[id].name << " skill!" << std::endl;
-        Outcomes outcomes = applyAction(worldState, actions[id], true);
+        Outcomes outcomes = applyAction(worldState, actions[id]);
 
         if(outcomes.first.worldState.durability<=0)
         {
@@ -249,7 +230,7 @@ int main()
             break;
         }
 
-        if(worldState.condition==WorldState::Condition::Normal)
+        if(worldState.condition==WorldState::Condition::Normal && worldState.quality < worldState.recipe.maxQuality)
         {
             std::cout << "What is the condition (p, n, g or e)" << std::endl;
             char condition;
@@ -281,7 +262,4 @@ int main()
             }
         }
     }
-
-    std::cout << "End" << endl;
-    return 0;
 }

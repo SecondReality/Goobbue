@@ -1,5 +1,7 @@
 #pragma once
+
 #include "action.h"
+#include "ThirdParty/json.h"
 
 struct Crafter
 {
@@ -9,4 +11,8 @@ struct Crafter
     int control;
     int cp;
     std::vector<Action::Identifier> actions;
+
+    void print();
 };
+
+std::map<CraftingClass, Crafter> readCrafters(Json::Value root, const std::vector<Action>& allActions);

@@ -70,7 +70,7 @@ float calculateBaseQualityIncrease(int levelDifference, int control)
     }
     else
     {
-        baseQuality = 0.36f * control + 34;
+        baseQuality = 3.46e-5 * control * control + 0.3514 * control + 34.66;
     }
     float levelCorrectedQuality = baseQuality * (1 + levelCorrectionFactor);
 
@@ -79,17 +79,15 @@ float calculateBaseQualityIncrease(int levelDifference, int control)
 
 void SimulateAction(WorldState& worldState, Action action, float success);
 
-Outcomes ApplyAction(const WorldState& worldState, Action action)
+float actionSuccessProbability(const WorldState& worldState, Action action)
 {
-    const Effects &effects = worldState.effects;
-
     float successProbability = 0.0f;
 
-    if (effects.countDownsContainsAction(Action::Identifier::steadyHand2))
+    if (worldState.effects.countDownsContainsAction(Action::Identifier::steadyHand2))
     {
         successProbability = action.successProbability + 0.3f;
     }
-    else if(effects.countDownsContainsAction(Action::Identifier::steadyHand))
+    else if(worldState.effects.countDownsContainsAction(Action::Identifier::steadyHand))
     {
         successProbability = action.successProbability + 0.2f;
     }
@@ -100,6 +98,12 @@ Outcomes ApplyAction(const WorldState& worldState, Action action)
 
     successProbability = std::min(successProbability, 1.0f);
 
+    return successProbability;
+}
+
+Outcomes applyAction(const WorldState &worldState, Action action, bool verbose)
+{
+    float successProbability=actionSuccessProbability(worldState, action);
     float failureProbability = 1.0f - successProbability;
 
     Outcome successWorld;
@@ -167,7 +171,7 @@ void SimulateAction(WorldState& worldState, Action action, float success)
 
     if(worldState.condition==WorldState::Condition::Poor)
     {
-        qualityIncreaseMultiplier *= 0.5;
+        qualityIncreaseMultiplier *= 0.5f;
     }
     else if(worldState.condition==WorldState::Condition::Excellent)
     {
@@ -175,7 +179,7 @@ void SimulateAction(WorldState& worldState, Action action, float success)
     }
     else if(worldState.condition==WorldState::Condition::Good)
     {
-        qualityIncreaseMultiplier *= 1.5;
+        qualityIncreaseMultiplier *= 1.5f;
     }
     else if(worldState.condition==WorldState::Condition::Normal)
     {
@@ -297,7 +301,6 @@ void SimulateAction(WorldState& worldState, Action action, float success)
     worldState.quality = std::min(worldState.quality, worldState.recipe.maxQuality);
     worldState.durability = std::min(worldState.durability, worldState.recipe.durability);
     worldState.cp = std::min(worldState.cp, worldState.crafter.cp);
-
 
     worldState.progress = std::max(worldState.progress, 0);
     worldState.quality = std::max(worldState.quality, 0);

@@ -1,0 +1,18 @@
+[
+  {
+    "class": "Goldsmith",
+    "level": 42,
+    "craftsmanship": 205,
+    "control": 204,
+    "cp": 304,
+    "crossClassActions" :
+      [
+        "rapidSynthesis",
+        "hastyTouch",
+        "pieceByPiece",
+        "wasteNot",
+        "carefulSynthesis",
+        "ingenuity"
+      ]
+  }
+]

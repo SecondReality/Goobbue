@@ -1,5 +1,8 @@
 #pragma once
 #include <string>
+#include <map>
+#include "ThirdParty/json.h"
+#include "craftingClass.h"
 
 struct Recipe
 {
@@ -9,13 +12,7 @@ struct Recipe
     int durability;
     int difficulty;
 
-    // For testing purposes this is an Iron Ingot recipe:
-    Recipe()
-    {
-        maxQuality = 726;
-        name = "Iron Ingot";
-        level = 13;
-        durability = 40;
-        difficulty = 27;
-    }
+    void print();
 };
+
+bool readRecipe(Json::Value root, CraftingClass craftingClass, std::string recipeName, Recipe & recipe);

@@ -8,7 +8,7 @@
 class Expectimax
 {
 public:
-    Expectimax() : maxDepth(5)
+    Expectimax() : maxDepth(6)
     {
     }
 
@@ -19,6 +19,7 @@ public:
 
 private:
     std::pair<float, Action::Identifier> evaluate(WorldState worldState, int depth);
+    std::pair<float, Action::Identifier> evaluateNoConditionsNoFailure(const WorldState& worldState, int depth);
     float evaluateQualities(const WorldState & worldState, int depth);
     bool isTerminal(const WorldState & worldState);
     float fitness(const WorldState & worldState);

@@ -3,6 +3,7 @@
 #include "craftingClass.h"
 
 #include <vector>
+#include <string>
 #include "ThirdParty/json.h"
 
 struct Action
@@ -60,4 +61,7 @@ struct Action
     void print();
 };
 
-std::vector<Action> ReadActions(Json::Value root);
+Action::Identifier stringToActionIdentifier(std::string actionIdentifierString);
+std::string actionIdentifierToString(Action::Identifier actionIdentifier);
+std::vector<std::string> actionNames();
+std::vector<Action> readActions(Json::Value root);

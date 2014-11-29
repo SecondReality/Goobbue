@@ -12,6 +12,45 @@ std::pair<float, Action::Identifier> Expectimax::evaluate(WorldState worldState,
     float bestScore = -std::numeric_limits<float>::infinity();
     Action::Identifier bestActionIdentifier;
 
+    for(auto actionIdentifier : worldState.crafter.actions) {
+        Action action = actions[actionIdentifier];
+
+        if (!canUseAction(worldState, action)) {
+            continue;
+        }
+
+        Outcomes outcomes = applyAction(worldState, action);
+
+        float score = 0;
+
+        score += evaluateQualities(outcomes.first.worldState, depth + 1) * outcomes.first.probability;
+
+        if (outcomes.first.probability == 1.0f)
+        {
+            // TODO
+        }
+        else
+        {
+            score+=evaluateQualities(outcomes.second.worldState, depth + 1) * outcomes.second.probability;
+        }
+
+        if(score > bestScore)
+        {
+            bestScore = score;
+            bestActionIdentifier = actionIdentifier;
+        }
+    }
+
+    return std::make_pair(bestScore, bestActionIdentifier);
+}
+
+std::pair<float, Action::Identifier> Expectimax::evaluateNoConditionsNoFailure(const WorldState& worldState, int depth)
+{
+    depth++;
+
+    float bestScore = -std::numeric_limits<float>::infinity();
+    Action::Identifier bestActionIdentifier;
+
     for(auto actionIdentifier : worldState.crafter.actions)
     {
         Action action = actions[actionIdentifier];
@@ -21,15 +60,47 @@ std::pair<float, Action::Identifier> Expectimax::evaluate(WorldState worldState,
             continue;
         }
 
-        Outcomes outcomes = ApplyAction(worldState, action);
+        Outcomes outcomes = applyAction(worldState, action);
 
         float score = 0;
 
-        score+=evaluateQualities(outcomes.first.worldState, depth+1) * outcomes.first.probability;
-
-        if(action.successProbability!=1.0f)
+        if(isTerminal(outcomes.first.worldState) || depth >= maxDepth)
         {
-            score += evaluateQualities(outcomes.second.worldState, depth + 1) * outcomes.second.probability;
+            terminalWorldsEvaluated++;
+            if(1.0f==outcomes.first.probability)
+            {
+                score = fitness(outcomes.first.worldState);
+            }
+            else
+            {
+                float delta = fitness(outcomes.first.worldState) - fitness(outcomes.second.worldState);
+                score = fitness(outcomes.second.worldState) + delta * outcomes.first.probability;
+            }
+        }
+        else
+        {
+            // Update the condition:
+            WorldState::Condition newCondition;
+            switch(outcomes.first.worldState.condition)
+            {
+                case WorldState::Condition::Excellent: newCondition = WorldState::Condition::Poor; break;
+                case WorldState::Condition::Good: newCondition = WorldState::Condition::Normal; break;
+                case WorldState::Condition::Poor: newCondition = WorldState::Condition::Normal; break;
+                case WorldState::Condition::Normal: newCondition = WorldState::Condition::Normal; break;
+            }
+
+            WorldState evaluationWorld = outcomes.first.worldState;
+            evaluationWorld.condition = newCondition;
+
+            if(1.0f==outcomes.first.probability)
+            {
+                score = evaluateNoConditionsNoFailure(evaluationWorld, depth).first;
+            }
+            else
+            {
+                float delta = evaluateNoConditionsNoFailure(evaluationWorld, depth).first - fitness(outcomes.second.worldState);
+                score = fitness(outcomes.second.worldState) + delta * outcomes.first.probability;
+            }
         }
 
         if(score > bestScore)
@@ -44,8 +115,8 @@ std::pair<float, Action::Identifier> Expectimax::evaluate(WorldState worldState,
 
 Action::Identifier Expectimax::evaluateAction(WorldState worldState)
 {
-    Action::Identifier result = evaluate(worldState, 0).second;
-    std::cout << "Terminal worlds evaluated: " << terminalWorldsEvaluated << std::endl;
+    Action::Identifier result = evaluateNoConditionsNoFailure(worldState, 0).second;
+    // std::cout << "Terminal worlds evaluated: " << terminalWorldsEvaluated << std::endl;
     return result;
 }
 
@@ -91,26 +162,19 @@ bool Expectimax::isTerminal(const WorldState & worldState)
 
 float Expectimax::fitness(const WorldState & worldState)
 {
-    float qualityFraction=worldState.quality/(float)worldState.recipe.maxQuality;
-    float progressFraction=worldState.progress/(float)worldState.recipe.difficulty;
-    if(0==worldState.durability && progressFraction!=1.0f)
+    float qualityFraction = worldState.quality / (float) worldState.recipe.maxQuality;
+    float progressFraction = worldState.progress / (float) worldState.recipe.difficulty;
+    float cpFraction = worldState.cp / (float) worldState.crafter.cp;
+    float durabilityFraction = worldState.durability / (float) worldState.recipe.durability;
+
+    // Used on leaves only:
+    if(0 == worldState.durability && progressFraction != 1.0f)
     {
         return 0;
     }
 
-    return qualityFraction * progressFraction;
-
-    if(worldState.progress>=worldState.recipe.difficulty)
-    {
-        //std::cout << worldState.quality << std::endl;
-        return worldState.quality;
-    }
-    else
-    {
-
-    }
-
-    return 0;
+    return 0.45f* qualityFraction + 0.45f * progressFraction + 0.05f * cpFraction + 0.05f * durabilityFraction;
+    //return 0.75f * qualityFraction + 0.15f * (progressFraction + cpFraction + durabilityFraction);
 }
 
 std::map<WorldState::Condition, float> Expectimax::conditionMap(WorldState::Condition condition)
