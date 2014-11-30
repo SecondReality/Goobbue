@@ -19,6 +19,6 @@ struct WorldState
 
     void print()
     {
-        std::cout << "WorldState: durability " << durability << " Quality " << quality << " Progress " << progress << " Cp " << cp << std::endl;
+        std::cout << "WorldState: durability " << durability << " Quality " << quality << " Progress " << progress << " Cp " << cp << " Buffs " << effects.countDowns.size() + effects.countUps.size() << std::endl;
     }
 };
