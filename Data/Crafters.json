@@ -28,5 +28,19 @@
         "rapidSynthesis",
         "wasteNot"
       ]
-  }
+  },
+  {
+    "class": "Leatherworker",
+    "level": 25,
+    "craftsmanship": 137,
+    "control": 142,
+    "cp": 278,
+    "crossClassActions" :
+      [
+        "manipulation",
+        "hastyTouch",
+        "rapidSynthesis",
+        "carefulSynthesis"
+      ]
+  }  
 ]
