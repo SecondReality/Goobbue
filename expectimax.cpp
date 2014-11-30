@@ -12,10 +12,12 @@ std::pair<float, Action::Identifier> Expectimax::evaluate(WorldState worldState,
     float bestScore = -std::numeric_limits<float>::infinity();
     Action::Identifier bestActionIdentifier;
 
-    for(auto actionIdentifier : worldState.crafter.actions) {
+    for(auto actionIdentifier : worldState.crafter.actions)
+    {
         Action action = actions[actionIdentifier];
 
-        if (!canUseAction(worldState, action)) {
+        if (!canUseAction(worldState, action))
+        {
             continue;
         }
 
@@ -115,9 +117,9 @@ std::pair<float, Action::Identifier> Expectimax::evaluateNoConditionsNoFailure(c
 
 Action::Identifier Expectimax::evaluateAction(WorldState worldState)
 {
-    Action::Identifier result = evaluateNoConditionsNoFailure(worldState, 0).second;
-    // std::cout << "Terminal worlds evaluated: " << terminalWorldsEvaluated << std::endl;
-    return result;
+    std::pair<float, Action::Identifier> result = evaluateNoConditionsNoFailure(worldState, 0);
+    std::cout << "world score: " << result.first << " terminal worlds evaluated: " << terminalWorldsEvaluated << std::endl;
+    return result.second;
 }
 
 float Expectimax::evaluateQualities(const WorldState & worldState, int depth)
@@ -173,8 +175,8 @@ float Expectimax::fitness(const WorldState & worldState)
         return 0;
     }
 
-    return 0.45f* qualityFraction + 0.45f * progressFraction + 0.05f * cpFraction + 0.05f * durabilityFraction;
-    //return 0.75f * qualityFraction + 0.15f * (progressFraction + cpFraction + durabilityFraction);
+    float qualityBonus = qualityFraction==1.0f ? 0.1f : 0.0f;
+    return (0.65f-0.05f) * qualityFraction + 0.05f * progressFraction + 0.15f * cpFraction + 0.2f * durabilityFraction + qualityBonus;
 }
 
 std::map<WorldState::Condition, float> Expectimax::conditionMap(WorldState::Condition condition)
