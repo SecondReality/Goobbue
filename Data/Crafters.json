@@ -14,5 +14,19 @@
         "carefulSynthesis",
         "ingenuity"
       ]
+  },
+  {
+    "class": "Weaver",
+    "level": 23,
+    "craftsmanship": 138,
+    "control": 139,
+    "cp": 275,
+    "crossClassActions" :
+      [
+        "manipulation",
+        "hastyTouch",
+        "rapidSynthesis",
+        "wasteNot"
+      ]
   }
 ]
