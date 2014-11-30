@@ -1,23 +1,14 @@
-// Goobbue : Gives you the optimal instructions to create crafts.
-// FFXIV Craft source file locations:
-// actions.js: skills and actions
-// recipedb.js: All recipes
-
 #include <iostream>
 #include <map>
 #include "ThirdParty/json.h"
-
 #include "craftingClass.h"
 #include "action.h"
 #include "jsonLoader.h"
 #include "recipe.h"
 #include "crafter.h"
-#include "effects.h"
 #include "worldState.h"
 #include "actionApplication.h"
 #include "expectimax.h"
-
-// Action -> Reaction -> Condition
 
 // Applies data from a recipe and crafter to the world state:
 void initializeWorldState(WorldState &worldState, Crafter crafter, Recipe recipe)
@@ -100,12 +91,10 @@ void configureCrafters()
     std::cout << "Feature not supported, coming soon!" << std::endl;
 }
 
-void performCraft()
-{
-    std::string dataPath = "E:/Dropbox/Goobbue/Data/";
+typedef std::vector<Action> ActionVector;
 
-    typedef std::vector<Action> ActionVector;
-    ActionVector actions = readActions(loadJson(dataPath + "Skills.json"));
+Crafter selectCrafter(const std::string& dataPath, const ActionVector& actions)
+{
     std::map<CraftingClass, Crafter> crafters = readCrafters(loadJson(dataPath + "Crafters.json"), actions);
 
     Crafter crafter;
@@ -133,6 +122,11 @@ void performCraft()
         }
     }
 
+    return crafter;
+}
+
+Recipe selectRecipe(const std::string& dataPath, CraftingClass craftingClass)
+{
     Recipe recipe;
 
     while(true)
@@ -143,7 +137,7 @@ void performCraft()
         std::getline(std::cin, recipeName);
         std::cout << "Searching for " << recipeName << std::endl;
 
-        if(readRecipe(loadJson(dataPath + "Recipes.json"), crafter.craftingClass, recipeName, recipe))
+        if(readRecipe(loadJson(dataPath + "Recipes.json"), craftingClass, recipeName, recipe))
         {
             std::cout << "Found recipe." << std::endl;
             recipe.print();
@@ -155,22 +149,22 @@ void performCraft()
         }
     }
 
-    WorldState worldState;
-    initializeWorldState(worldState, crafter, recipe);
+    return recipe;
+}
 
+int getStartingQuality()
+{
     std::cout << "Enter the starting quality" << std::endl;
     int quality = 0;
     std::cin >> quality;
-    worldState.quality = quality;
-    std::cout << "Starting Craft!" << std::endl;
+    return quality;
+}
 
-    /*
-    Outcomes outcomes = applyAction(worldState, actions[Action::Identifier::greatStrides]);
-    outcomes = applyAction(outcomes.first.worldState, actions[Action::Identifier::steadyHand]);
-    outcomes.first.worldState.condition = WorldState::Condition::Good;
-    outcomes = applyAction(outcomes.first.worldState, actions[Action::Identifier::standardTouch]);
-    std::cout << "Quality: " << outcomes.first.worldState.quality << std::endl;
-    */
+void performCraftingAlgorithm(const WorldState & worldStateIn, const ActionVector& actions)
+{
+    WorldState worldState = worldStateIn;
+
+    std::cout << "Starting Craft!" << std::endl;
 
     while(true)
     {
@@ -232,22 +226,32 @@ void performCraft()
 
         if(worldState.condition==WorldState::Condition::Normal && worldState.quality < worldState.recipe.maxQuality)
         {
-            std::cout << "What is the condition (p, n, g or e)" << std::endl;
-            char condition;
-            std::cin >> condition;
-            switch (condition) {
-                case 'p':
-                    worldState.condition = WorldState::Condition::Poor;
-                    break;
-                case 'n':
-                    worldState.condition = WorldState::Condition::Normal;
-                    break;
-                case 'g':
-                    worldState.condition = WorldState::Condition::Good;
-                    break;
-                case 'e':
-                    worldState.condition = WorldState::Condition::Excellent;
-                    break;
+            while(true)
+            {
+                std::cout << "What is the condition: (p)oor, (n)ormal, (g)ood or (e)xcellent?" << std::endl;
+                char condition;
+                std::cin >> condition;
+
+                switch (condition)
+                {
+                    case 'p':
+                        worldState.condition = WorldState::Condition::Poor;
+                        break;
+                    case 'n':
+                        worldState.condition = WorldState::Condition::Normal;
+                        break;
+                    case 'g':
+                        worldState.condition = WorldState::Condition::Good;
+                        break;
+                    case 'e':
+                        worldState.condition = WorldState::Condition::Excellent;
+                        break;
+                    default:
+                        std::cout << "Condition not understood, try again" << std::endl;
+                        continue;
+                }
+
+                break;
             }
         }
         else
@@ -263,3 +267,65 @@ void performCraft()
         }
     }
 }
+
+bool yesNoQuestion(const std::string& text)
+{
+    std::cout << text << " (y or n)" << std::endl;
+    char decision;
+    std::cin >> decision;
+
+    if(decision=='y')
+    {
+        return true;
+    }
+
+    return false;
+}
+
+void performCraft()
+{
+    std::string dataPath = "E:/Dropbox/Goobbue/Data/";
+    ActionVector actions = readActions(loadJson(dataPath + "Skills.json"));
+
+    while (true)
+    {
+        Crafter crafter = selectCrafter(dataPath, actions);
+
+        while (true)
+        {
+            Recipe recipe = selectRecipe(dataPath, crafter.craftingClass);
+
+            WorldState worldState;
+            initializeWorldState(worldState, crafter, recipe);
+            worldState.quality = getStartingQuality();
+
+            while (true)
+            {
+                performCraftingAlgorithm(worldState, actions);
+
+                if (!yesNoQuestion("Repeat the craft with the same recipe and quality?"))
+                {
+                    break;
+                }
+            }
+
+            if (!yesNoQuestion("Repeat the craft with the same crafter?"))
+            {
+                break;
+            }
+        }
+
+        if (yesNoQuestion("Go to the main menu?"))
+        {
+            break;
+        }
+
+    }
+}
+/*
+Outcomes outcomes = applyAction(worldState, actions[Action::Identifier::greatStrides]);
+outcomes = applyAction(outcomes.first.worldState, actions[Action::Identifier::steadyHand]);
+outcomes.first.worldState.condition = WorldState::Condition::Good;
+outcomes = applyAction(outcomes.first.worldState, actions[Action::Identifier::standardTouch]);
+std::cout << "Quality: " << outcomes.first.worldState.quality << std::endl;
+*/
