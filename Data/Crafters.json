@@ -17,10 +17,10 @@
   },
   {
     "class": "Weaver",
-    "level": 23,
-    "craftsmanship": 138,
-    "control": 139,
-    "cp": 275,
+    "level": 26,
+    "craftsmanship": 147,
+    "control": 148,
+    "cp": 283,
     "crossClassActions" :
       [
         "manipulation",
@@ -42,5 +42,18 @@
         "rapidSynthesis",
         "carefulSynthesis"
       ]
-  }  
+  },  {
+    "class": "Culinarian",
+    "level": 21,
+    "craftsmanship": 123,
+    "control": 132,
+    "cp": 278,
+    "crossClassActions" :
+      [
+        "manipulation",
+        "wasteNot",
+        "rapidSynthesis",
+        "carefulSynthesis"
+      ]
+  }
 ]
