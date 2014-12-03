@@ -1,10 +1,9 @@
 #include <iostream>
 #include "crafter.h"
-#include "craftingClass.h"
 
 Crafter readCrafter(Json::Value root)
 {
-    Crafter crafter;
+    Crafter crafter = Crafter();
 
     // Read the cross class actions:
     if(root.isMember("crossClassActions"))
@@ -34,12 +33,12 @@ std::map<CraftingClass, Crafter> readCrafters(Json::Value root, const std::vecto
     {
        Crafter crafter = readCrafter(root[i]);
 
-        for(int i=0; i<actions.size(); ++i)
+        for(int n=0; n<actions.size(); ++n)
         {
-            Action action = actions[i];
+            Action action = actions[n];
             if( (action.craftingClass == crafter.craftingClass || action.craftingClass == All) && action.level<=crafter.level)
             {
-                crafter.actions.push_back(actions[i].identifier);
+                crafter.actions.push_back(actions[n].identifier);
             }
         }
 

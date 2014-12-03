@@ -1,8 +1,6 @@
 #include "action.h"
 
 #include <iostream>
-#include <algorithm>
-#include <string>
 
 std::vector<std::string> actionNames()
 {
@@ -45,8 +43,6 @@ std::string actionIdentifierToString(Action::Identifier actionIdentifier)
 
 Action::Identifier stringToActionIdentifier(std::string actionIdentifierString)
 {
-    Action::Identifier identifier;
-
     std::vector<std::string> actionNameVector = actionNames();
 
     auto it = std::find(actionNameVector.begin(), actionNameVector.end(), actionIdentifierString);
@@ -56,10 +52,11 @@ Action::Identifier stringToActionIdentifier(std::string actionIdentifierString)
     }
     else
     {
-        identifier = (Action::Identifier)std::distance(actionNameVector.begin(), it);
+        return (Action::Identifier)std::distance(actionNameVector.begin(), it);
     }
 
-    return identifier;
+    // TODO: Return error code or throw exception.
+    return Action::Identifier::advancedTouch;
 }
 
 void Action::print()
@@ -70,7 +67,7 @@ void Action::print()
 std::vector<Action> readActions(Json::Value root)
 {
     std::vector<Action> actions;
-    for (int i = 0; i < root.size(); ++i)
+    for(int i = 0; i < root.size(); ++i)
     {
         Action action;
         action.shortName = root[i]["shortName"].asString();

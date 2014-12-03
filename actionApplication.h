@@ -9,5 +9,5 @@ struct Outcome
 
 typedef std::pair<Outcome, Outcome> Outcomes;
 
-Outcomes applyAction(const WorldState &worldState, Action action, bool verbose = false);
+Outcomes applyAction(const WorldState &worldState, Action action);
 float actionSuccessProbability(const WorldState& worldState, Action action);

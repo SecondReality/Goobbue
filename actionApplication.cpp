@@ -1,6 +1,6 @@
 #include "actionApplication.h"
 
-#include <math.h>
+#include <cmath>
 
 float round(float d)
 {
@@ -70,18 +70,18 @@ float calculateBaseQualityIncrease(int levelDifference, int control)
     }
     else
     {
-        baseQuality = 3.46e-5 * control * control + 0.3514 * control + 34.66;
+        baseQuality = 3.46e-5f * control * control + 0.3514f * control + 34.66f;
     }
     float levelCorrectedQuality = baseQuality * (1 + levelCorrectionFactor);
 
     return round(levelCorrectedQuality);
 }
 
-void SimulateAction(WorldState& worldState, Action action, float success);
+void simulateAction(WorldState &worldState, Action action, float success);
 
 float actionSuccessProbability(const WorldState& worldState, Action action)
 {
-    float successProbability = 0.0f;
+    float successProbability;
 
     if (worldState.effects.countDownsContainsAction(Action::Identifier::steadyHand2))
     {
@@ -101,7 +101,7 @@ float actionSuccessProbability(const WorldState& worldState, Action action)
     return successProbability;
 }
 
-Outcomes applyAction(const WorldState &worldState, Action action, bool verbose)
+Outcomes applyAction(const WorldState &worldState, Action action)
 {
     float successProbability=actionSuccessProbability(worldState, action);
     float failureProbability = 1.0f - successProbability;
@@ -114,17 +114,17 @@ Outcomes applyAction(const WorldState &worldState, Action action, bool verbose)
     failureWorld.worldState = worldState;
     failureWorld.probability = failureProbability;
 
-    SimulateAction(successWorld.worldState, action, 1.0f);
+    simulateAction(successWorld.worldState, action, 1.0f);
 
     if(1.0f!=successProbability)
     {
-        SimulateAction(failureWorld.worldState, action, 0.0f);
+        simulateAction(failureWorld.worldState, action, 0.0f);
     }
 
     return std::make_pair(successWorld, failureWorld);
 }
 
-void SimulateAction(WorldState& worldState, Action action, float success)
+void simulateAction(WorldState &worldState, Action action, float success)
 {
     const Crafter &crafter = worldState.crafter;
     const Recipe &recipe = worldState.recipe;

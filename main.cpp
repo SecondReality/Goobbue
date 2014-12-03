@@ -274,12 +274,7 @@ bool yesNoQuestion(const std::string& text)
     char decision;
     std::cin >> decision;
 
-    if(decision=='y')
-    {
-        return true;
-    }
-
-    return false;
+    return decision=='y';
 }
 
 void performCraft()

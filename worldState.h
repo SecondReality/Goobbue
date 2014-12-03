@@ -5,6 +5,8 @@
 
 #include <iostream>
 
+struct Action;
+
 struct WorldState
 {
     Crafter crafter;
@@ -17,8 +19,9 @@ struct WorldState
     enum Condition { Poor, Normal, Good, Excellent };
     Condition condition;
 
-    void print()
-    {
-        std::cout << "WorldState: durability " << durability << " Quality " << quality << " Progress " << progress << " Cp " << cp << " Buffs " << effects.countDowns.size() + effects.countUps.size() << std::endl;
-    }
+    void print();
+
+    bool isTerminal() const;
+
+    bool canUseAction(const Action& action) const;
 };
