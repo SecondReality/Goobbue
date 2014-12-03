@@ -1,6 +1,7 @@
 #include "action.h"
 
 #include <iostream>
+#include <algorithm>
 
 std::vector<std::string> actionNames()
 {

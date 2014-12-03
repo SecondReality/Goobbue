@@ -1,5 +1,6 @@
 #include "expectimax.h"
 #include "actionApplication.h"
+#include <limits>
 
 Expectimax::Expectimax() : maxDepth(7)
 {
