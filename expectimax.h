@@ -2,8 +2,18 @@
 #include "action.h"
 #include "worldState.h"
 
-// Recording Action History (significantly effects speed)
+// To enable threading:
+#define USE_THREADS
+
+// Recording Action History (slightly slows down program)
 // #define RAH
+
+struct ActionEvaluationResult
+{
+    Action::Identifier actionIdentifier;
+    std::vector<Action::Identifier> actionHistory;
+    float score;
+};
 
 // This algorithm will evaluate a set of actions and return the best action to choose.
 class Expectimax
@@ -17,13 +27,12 @@ public:
     ActionVector actions;
 
 private:
-    std::pair<float, Action::Identifier> evaluate(WorldState worldState, int depth);
     std::pair<float, Action::Identifier> evaluateNoConditionsNoFailure(const WorldState& worldState, int depth
         #ifdef RAH
         , std::vector<Action::Identifier>& actionHistory
         #endif
     );
-    float evaluateQualities(const WorldState & worldState, int depth);
+
     float fitness(const WorldState & worldState);
     std::map<WorldState::Condition, float> conditionMap(WorldState::Condition condition);
 
@@ -32,4 +41,8 @@ private:
     float pExcellent = 0.01;
     int terminalWorldsEvaluated = 0;
     bool considerExcellentCondition = false;
+
+    inline ActionEvaluationResult getActionScore(const WorldState &worldState, int depth, Action::Identifier actionIdentifier);
+
+    float earlyAbandonmentScore = 0;
 };

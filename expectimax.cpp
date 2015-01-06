@@ -1,48 +1,105 @@
 #include "expectimax.h"
 #include "actionApplication.h"
-#include <limits>
+//#include <limits>
+//#include <future>
+//#define BOOST_ALL_NO_LIB
+#include <boost/thread.hpp>
+#define BOOST_THREAD_PROVIDES_FUTURE
+#include <boost/thread/future.hpp>
 
-Expectimax::Expectimax() : maxDepth(7)
+using namespace boost;
+
+Expectimax::Expectimax() : maxDepth(8)
 {
 }
 
-std::pair<float, Action::Identifier> Expectimax::evaluate(WorldState worldState, int depth)
+// Updates the condition of a world.
+// Note that this is deterministic and only gives an approximation.
+void updateCondition(WorldState& worldState)
 {
-    float bestScore = -std::numeric_limits<float>::infinity();
-    Action::Identifier bestActionIdentifier;
-
-    for(auto actionIdentifier : worldState.crafter.actions)
+    WorldState::Condition newCondition;
+    switch(worldState.condition)
     {
-        Action action = actions[actionIdentifier];
+        case WorldState::Condition::Excellent: newCondition = WorldState::Condition::Poor; break;
+        case WorldState::Condition::Good: newCondition = WorldState::Condition::Normal; break;
+        case WorldState::Condition::Poor: newCondition = WorldState::Condition::Normal; break;
+        case WorldState::Condition::Normal: // Intentional fallthrough.
+        default: newCondition = WorldState::Condition::Normal; break;
+    }
 
-        if (!worldState.canUseAction(action))
+    worldState.condition = newCondition;
+}
+
+inline ActionEvaluationResult Expectimax::getActionScore(const WorldState &worldState, int depth, Action::Identifier actionIdentifier)
+{
+    ActionEvaluationResult actionEvaluationResult;
+
+    Action action = actions[actionIdentifier];
+
+    if (!worldState.canUseAction(action))
+    {
+        actionEvaluationResult.score = -std::numeric_limits<float>::infinity();
+        return actionEvaluationResult;
+    }
+
+    Outcomes outcomes = applyAction(worldState, action);
+    updateCondition(outcomes.first.worldState);
+    updateCondition(outcomes.second.worldState);
+
+    if (outcomes.first.worldState.isTerminal() || depth >= maxDepth)
+    {
+#ifdef RAH
+        actionEvaluationResult.actionHistory.push_back(actionIdentifier);
+#endif
+
+        terminalWorldsEvaluated++;
+        if (1.0f == outcomes.first.probability)
         {
-            continue;
-        }
-
-        Outcomes outcomes = applyAction(worldState, action);
-
-        float score = 0;
-
-        score += evaluateQualities(outcomes.first.worldState, depth + 1) * outcomes.first.probability;
-
-        if (outcomes.first.probability == 1.0f)
-        {
-            // TODO
+            actionEvaluationResult.score = fitness(outcomes.first.worldState);
         }
         else
         {
-            score+=evaluateQualities(outcomes.second.worldState, depth + 1) * outcomes.second.probability;
+            float delta = fitness(outcomes.first.worldState) - fitness(outcomes.second.worldState);
+            actionEvaluationResult.score = fitness(outcomes.second.worldState) + delta * outcomes.first.probability;
         }
-
-        if(score > bestScore)
+    }
+    else
+    {
+        if (1.0f == outcomes.first.probability)
         {
-            bestScore = score;
-            bestActionIdentifier = actionIdentifier;
+            actionEvaluationResult.score = evaluateNoConditionsNoFailure(outcomes.first.worldState, depth
+#ifdef RAH
+                    , actionEvaluationResult.actionHistory
+#endif
+            ).first;
+        }
+        else
+        {
+            auto successPair = evaluateNoConditionsNoFailure(outcomes.first.worldState, depth
+#ifdef RAH
+                    , actionEvaluationResult.actionHistory
+#endif
+            );
+
+            // TODO: Remove failureActionEvaluationResult somehow - it is unused and wasting processing
+            ActionEvaluationResult failureActionEvaluationResult;
+            auto failurePair = evaluateNoConditionsNoFailure(outcomes.second.worldState, depth
+#ifdef RAH
+                    , failureActionEvaluationResult.actionHistory
+#endif
+            );
+
+            float delta = successPair.first - failurePair.first;
+            actionEvaluationResult.score = failurePair.first + delta * outcomes.first.probability;
         }
     }
 
-    return std::make_pair(bestScore, bestActionIdentifier);
+    if (depth == 1)
+    {
+        // std::cout << "Action: " << actionIdentifierToString(actionIdentifier) << " fitness: " << actionEvaluationResult.score << std::endl;
+    }
+
+    return actionEvaluationResult;
 }
 
 std::pair<float, Action::Identifier> Expectimax::evaluateNoConditionsNoFailure(const WorldState& worldState, int depth
@@ -53,6 +110,21 @@ std::pair<float, Action::Identifier> Expectimax::evaluateNoConditionsNoFailure(c
 {
     depth++;
 
+    // Early rejection of improbable worlds:
+    /*
+    if(depth==6) // && action has no future promise (e.g. it's not a buff)
+    {
+        if (fitness(worldState) < earlyAbandonmentScore * 0.8f)
+        {
+            return std::make_pair(0.0f, Action::Identifier::byregotsBlessing);
+        }
+        else if (fitness(worldState) > earlyAbandonmentScore)
+        {
+            earlyAbandonmentScore = fitness(worldState);
+        }
+    }
+    */
+
     float bestScore = -std::numeric_limits<float>::infinity();
     Action::Identifier bestActionIdentifier;
 
@@ -60,84 +132,65 @@ std::pair<float, Action::Identifier> Expectimax::evaluateNoConditionsNoFailure(c
     std::vector<Action::Identifier> bestChildActionHistory;
 #endif
 
-    for(auto actionIdentifier : worldState.crafter.actions)
-    {
-        Action action = actions[actionIdentifier];
-
-#ifdef RAH
-        std::vector<Action::Identifier> childActionHistory;
+#ifdef USE_THREADS
+    std::map<Action::Identifier, unique_future<ActionEvaluationResult> > futures;
 #endif
 
-        if(!worldState.canUseAction(action))
+    // Lets just get an array of structures - it is simpler;
+    int n=0;
+    for(auto actionIdentifier : worldState.crafter.actions)
+    {
+
+        if(depth==1)
         {
+            // std::cout << "Processing action " << n << " of " << worldState.crafter.actions.size() << std::endl;
+        }
+#ifdef USE_THREADS
+        if(depth==1)
+        {
+            futures[actionIdentifier] = boost::async(boost::launch::async, boost::bind(&Expectimax::getActionScore, this, worldState, depth, actionIdentifier));
+            // std::cout << "Creating thread" << std::endl;
             continue;
         }
-
-        Outcomes outcomes = applyAction(worldState, action);
-
-        float score = 0;
-
-        if(outcomes.first.worldState.isTerminal() || depth >= maxDepth)
-        {
-#ifdef RAH
-            childActionHistory.push_back(actionIdentifier);
-            #endif
-
-            terminalWorldsEvaluated++;
-            if(1.0f==outcomes.first.probability)
-            {
-                score = fitness(outcomes.first.worldState);
-            }
-            else
-            {
-                float delta = fitness(outcomes.first.worldState) - fitness(outcomes.second.worldState);
-                score = fitness(outcomes.second.worldState) + delta * outcomes.first.probability;
-            }
-        }
         else
+        #endif
         {
-            // Update the condition:
-            WorldState::Condition newCondition;
-            switch(outcomes.first.worldState.condition)
+            ActionEvaluationResult actionEvaluationResult = getActionScore(worldState, depth, actionIdentifier);
+            if(actionEvaluationResult.score > bestScore)
             {
-                case WorldState::Condition::Excellent: newCondition = WorldState::Condition::Poor; break;
-                case WorldState::Condition::Good: newCondition = WorldState::Condition::Normal; break;
-                case WorldState::Condition::Poor: newCondition = WorldState::Condition::Normal; break;
-                case WorldState::Condition::Normal: // Intentional fallthrough.
-                default: newCondition = WorldState::Condition::Normal; break;
-            }
-
-            WorldState evaluationWorld = outcomes.first.worldState;
-            evaluationWorld.condition = newCondition;
-
-            if(1.0f==outcomes.first.probability)
-            {
-                score = evaluateNoConditionsNoFailure(evaluationWorld, depth
+                bestScore = actionEvaluationResult.score;
+                bestActionIdentifier = actionIdentifier;
 #ifdef RAH
-                        , childActionHistory
-                        #endif
-                ).first;
-            }
-            else
-            {
-                float delta = evaluateNoConditionsNoFailure(evaluationWorld, depth
-#ifdef RAH
-                        , childActionHistory
-                        #endif
-                ).first - fitness(outcomes.second.worldState);
-                score = fitness(outcomes.second.worldState) + delta * outcomes.first.probability;
+                // TODO!
+                bestChildActionHistory = actionEvaluationResult.actionHistory;
+#endif
             }
         }
-
-        if(score > bestScore)
-        {
-            bestScore = score;
-            bestActionIdentifier = actionIdentifier;
-#ifdef RAH
-            bestChildActionHistory = childActionHistory;
-            #endif
-        }
+        n++;
     }
+
+#ifdef USE_THREADS
+    // Collate the results from our futures:
+    // Wait for our futures to finish:
+    for(auto & kv : futures)
+    {
+        //std::cout << "Waiting for thread" << std::endl;
+        kv.second.wait();
+
+        ActionEvaluationResult actionEvaluationResult = kv.second.get();
+        if(actionEvaluationResult.score > bestScore)
+        {
+            bestScore = actionEvaluationResult.score;
+            bestActionIdentifier = kv.first;
+#ifdef RAH
+            bestChildActionHistory = actionEvaluationResult.actionHistory;
+#endif
+        }
+
+        //std::cout << "Received result" << std::endl;
+
+    }
+    #endif
 
 #ifdef RAH
     actionHistory.push_back(bestActionIdentifier);
@@ -170,31 +223,6 @@ Action::Identifier Expectimax::evaluateAction(WorldState worldState)
     return result.second;
 }
 
-float Expectimax::evaluateQualities(const WorldState & worldState, int depth)
-{
-    if(worldState.isTerminal() || depth > maxDepth)
-    {
-        terminalWorldsEvaluated++;
-        return fitness(worldState);
-    }
-
-    // create a list of the possible qualities, along with their probabilities.
-    // for each entry in the list, apply the condition, evaluate it and multiply it with its probability.
-    std::map<WorldState::Condition, float> conditionMapping = conditionMap(worldState.condition);
-
-    float score = 0.0f;
-
-    for(auto vk : conditionMapping)
-    {
-        WorldState newWorldState = worldState;
-        newWorldState.condition = vk.first;
-
-        score+= evaluate(newWorldState, depth).first * vk.second;
-    }
-
-    return score;
-}
-
 float Expectimax::fitness(const WorldState & worldState)
 {
     float qualityFraction = worldState.quality / (float) worldState.recipe.maxQuality;
@@ -209,7 +237,7 @@ float Expectimax::fitness(const WorldState & worldState)
     }
 
     float qualityBonus = qualityFraction==1.0f ? 0.1f : 0.0f;
-    return (0.65f-0.05f) * qualityFraction + 0.05f * progressFraction + 0.15f * cpFraction + 0.2f * durabilityFraction + qualityBonus;
+    return (0.65f-0.05f) * qualityFraction + 0.05f * progressFraction + 0.10f * cpFraction + 0.2f * durabilityFraction + qualityBonus;
 }
 
 std::map<WorldState::Condition, float> Expectimax::conditionMap(WorldState::Condition condition)
