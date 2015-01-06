@@ -17,5 +17,38 @@ bool WorldState::isTerminal() const
 
 bool WorldState::canUseAction(const Action& action) const
 {
+    // We can only use tricks of the trade when the condition is good:
+    if(Action::Identifier::tricksOfTheTrade==action.identifier)
+    {
+        return Condition::Good == condition;
+    }
+
     return cp >= action.cpCost;
+}
+
+float WorldState::hqPercentage() const
+{
+    /*
+    TODO: Finish.
+    float qualityPercent = quality / recipe.maxQuality * 100;
+
+    float hqPercent = 1;
+
+    if(qualityPercent==0)
+    {
+        hqPercent=1;
+    }
+    else if(qualityPercent>=100)
+    {
+        hqPercent=100;
+    }
+    else
+    {
+        while (qualityFromHqPercent(hqPercent) < qualityPercent && hqPercent < 100) {
+            hqPercent += 1;
+        }
+    }
+    return hqPercent;
+    */
+    return 0;
 }

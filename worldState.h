@@ -24,4 +24,6 @@ struct WorldState
     bool isTerminal() const;
 
     bool canUseAction(const Action& action) const;
+    float hqPercentage() const;
 };
+
