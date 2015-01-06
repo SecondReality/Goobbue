@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 
 struct Effects
 {
@@ -37,12 +38,17 @@ struct Effects
 
     void updateCountDowns()
     {
-        for(auto &kv : countDowns)
+        auto iterator = countDowns.begin();
+        while(iterator != countDowns.end())
         {
-            kv.second -= 1;
-            if (kv.second <= 0)
+            --iterator->second;
+            if(iterator->second <= 0)
             {
-                countDowns.erase(kv.first);
+                iterator = countDowns.erase(iterator);
+            }
+            else
+            {
+                ++iterator;
             }
         }
     }
